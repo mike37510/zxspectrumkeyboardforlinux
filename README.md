@@ -1,45 +1,148 @@
-# zxspectrumkeyboardforlinux
+# ZX Spectrum Keyboard to Raspberry Pi GPIO Interface
 
-# Project Description
+## Description
 
-This project implements a matrix keyboard for Raspberry Pi, where keys are read through GPIO data lines and address lines. When a key is pressed, the corresponding event is emitted using **uinput** to simulate a physical keyboard on the system.
+This project allows a ZX Spectrum keyboard to interface with a Raspberry Pi via GPIO pins. By leveraging the GPIO capabilities of the Raspberry Pi, the keyboard's rows and columns can be scanned to detect key presses and simulate key events on the Pi. The project also supports two operational modes: `normal` and `symbol`, enabling the use of special characters.
 
-The project is designed to allow switching between two modes:
-- **Normal Mode**: The keyboard works like a standard keyboard, with letters and numbers.
-- **Symbol Mode**: The keyboard emits symbols like `!`, `@`, `#`, `$`, `%`, etc., using the **Shift** key combination.
+---
 
-## Key Features
+## Features
 
-1. **Matrix Keyboard**: Using GPIO to read a matrix keyboard with a defined number of rows and columns.
-2. **Switching Between Two Modes**:
-   - **Normal Mode**: Mapped letters and numbers.
-   - **Symbol Mode**: Mapped symbols like `!`, `@`, `#`, `$`, `%`, and others using the **Shift** key.
-3. **Keyboard Simulation**: Using **uinput**, the pressed keys are simulated as if coming from a real keyboard, allowing interaction with the system and applications.
-4. **Shift Mode**: Proper handling of symbols requiring **Shift**, such as `!`, `@`, `#`, etc.
+- Interface a ZX Spectrum keyboard to a Raspberry Pi.
+- Map key presses to Linux input events using the `uinput` module.
+- Toggle between `normal` and `symbol` modes for additional character inputs.
+- Full support for both regular and special characters, including combinations.
+- Built-in debounce mechanism to prevent multiple detections of the same key press.
+- Clean GPIO setup and teardown.
+
+---
+
+## Requirements
+
+### Hardware
+- Raspberry Pi (any model with GPIO support)
+- ZX Spectrum keyboard
+- GPIO wires and connectors
+
+### Software
+- Python 3
+- Libraries:
+  - `RPi.GPIO`: To manage GPIO pins.
+  - `uinput`: To emulate keyboard events.
+
+Install the required Python libraries:
+```bash
+sudo apt-get install python3-dev python3-setuptools python3-pip
+sudo pip3 install python-uinput
+```
+
+---
+
+## Wiring Setup
+
+### GPIO Connections
+
+1. **Data Lines (Keyboard Output to Raspberry Pi Input)**:
+    - Connect ZX Spectrum keyboard data lines to the following GPIO pins:
+      - Data Line 1 → GPIO 26
+      - Data Line 2 → GPIO 19
+      - Data Line 3 → GPIO 13
+      - Data Line 4 → GPIO 6
+      - Data Line 5 → GPIO 5
+
+2. **Address Lines (Keyboard Input from Raspberry Pi Output)**:
+    - Connect ZX Spectrum keyboard address lines to the following GPIO pins:
+      - Address Line 1 → GPIO 25
+      - Address Line 2 → GPIO 24
+      - Address Line 3 → GPIO 23
+      - Address Line 4 → GPIO 22
+      - Address Line 5 → GPIO 27
+      - Address Line 6 → GPIO 18
+      - Address Line 7 → GPIO 17
+      - Address Line 8 → GPIO 4
+
+---
 
 ## How It Works
 
-- The program uses GPIO pins to read the state of the keys on a matrix keyboard.
-- When a key is pressed, the **`read_keyboard()`** function identifies the key and emits the corresponding event using **uinput**.
-- The program allows switching between **normal** and **symbol** modes by pressing the **RIGHTCTRL** key.
+1. The Raspberry Pi scans the ZX Spectrum keyboard matrix by toggling address lines and reading data lines.
+2. When a key is pressed, the corresponding matrix position is detected, and a key event is generated using the `uinput` module.
+3. Pressing the `RIGHTCTRL` key toggles between `normal` and `symbol` modes for additional character input.
+4. Pressing the `LEFTSHIFT` key modifies input for uppercase letters and some special characters.
 
-## Installation and Usage
+---
 
-1. **Prerequisites**:
-   - A Raspberry Pi with a working Raspbian version.
-   - Python 3 and the **RPi.GPIO** module for GPIO interfacing.
-   - The **uinput** module to simulate keyboard input.
+## Code Overview
 
-2. **Installing Dependencies**:
+### Key Features
+- **Matrix Scanning**: Each row and column is checked to identify pressed keys.
+- **Key Mapping**: Separate mappings for `normal` and `symbol` modes.
+- **Debounce Mechanism**: Prevents multiple detections of the same key press.
+- **Keyboard Simulation**: Uses `uinput` to simulate key events.
+
+### Key Functions
+- `read_keyboard()`: Reads the keyboard matrix to detect key presses.
+- `get_key_name(i, j)`: Determines the key's name based on the current mode and matrix position.
+- `send_key_event(key_name)`: Emits the corresponding key event using `uinput`.
+- `toggle_mode()`: Switches between `normal` and `symbol` modes.
+
+---
+
+## Usage
+
+1. **Connect the Keyboard**:
+   - Wire the ZX Spectrum keyboard to the Raspberry Pi as described above.
+
+2. **Run the Script**:
    ```bash
-   sudo apt-get install python3-rpi.gpio python3-uinput
+   python3 zx_spectrum_keyboard.py
+   ```
 
-Running the Program: Clone this repository and run the script with Python 3:
+3. **Interact with the Keyboard**:
+   - Press keys on the ZX Spectrum keyboard, and the corresponding key events will be generated on the Raspberry Pi.
 
-python3 your_script_name.py
+4. **Toggle Modes**:
+   - Use the `RIGHTCTRL` key to switch between `normal` and `symbol` modes.
 
-## How It Works:
+5. **Stop the Program**:
+   - Press `Ctrl+C` to terminate the script safely.
 
-The program detects which key is pressed on the matrix keyboard.
-If the RIGHTCTRL key is pressed, the mode toggles between normal and symbol.
-Symbols like !, @, #, etc., require the Shift key to be pressed.
+---
+
+## Troubleshooting
+
+- **No Key Response**:
+  - Check your wiring.
+  - Verify the GPIO pin numbering matches your setup.
+
+- **Multiple Key Presses Detected**:
+  - Adjust the debounce delay in the `read_keyboard` loop.
+
+- **Error: `ModuleNotFoundError: No module named 'uinput'`**:
+  - Ensure the `python-uinput` library is installed.
+
+---
+
+## Future Improvements
+
+- Add support for more keyboard layouts.
+- Optimize scanning speed and debounce logic.
+- Implement additional special key combinations.
+
+---
+
+## License
+
+This project is licensed under the MIT License. Feel free to use, modify, and distribute it as per the terms of the license.
+
+---
+
+## Contributions
+
+Contributions are welcome! Please fork the repository and submit a pull request with your improvements or ideas.
+
+---
+
+## Author
+
+Developed by Mike. If you have any questions or feedback, feel free to contact me at.
