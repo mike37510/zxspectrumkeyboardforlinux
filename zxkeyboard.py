@@ -36,7 +36,7 @@ symbol_mode_matrix = [
     ['!', '@', '#', '$', '%'],
     ['<=', '<>', '>=', '<', '>'],
     ['STOP', 'NOT', 'STEP', 'TO', 'THEN'],
-    ['_', ')', '(', "'", '&'],
+    ['BACKSPACE', ')', '(', "'", '&'],  # BACKSPACE remplace _
     ['"', ';', 'AT', 'OR', 'AND'],
     ['LEFTSHIFT', ':', '£', '?', '/'],
     ['ENTER', '=', '+', '-', 'UP'],
@@ -45,6 +45,9 @@ symbol_mode_matrix = [
 
 # Variable pour suivre l'état du mode : normal ou SYMBOL
 current_mode = 'normal'  # Le mode par défaut est "normal"
+
+# Variable pour suivre si LEFTSHIFT est actif
+left_shift_active = False
 
 # Initialisation de uinput
 device = uinput.Device([
@@ -60,12 +63,12 @@ device = uinput.Device([
     uinput.KEY_SPACE, uinput.KEY_ENTER, uinput.KEY_LEFTSHIFT,
     uinput.KEY_RIGHTCTRL, uinput.KEY_MINUS, uinput.KEY_EQUAL,
     uinput.KEY_SEMICOLON, uinput.KEY_APOSTROPHE, uinput.KEY_COMMA,
-    uinput.KEY_DOT, uinput.KEY_SLASH
+    uinput.KEY_DOT, uinput.KEY_SLASH, uinput.KEY_BACKSPACE
 ])
 
 # Fonction pour scanner les lignes du clavier
 def read_keyboard():
-    global current_mode
+    global current_mode, left_shift_active
 
     key = None
 
@@ -79,12 +82,13 @@ def read_keyboard():
             if GPIO.input(data) == GPIO.LOW:  # Si un bouton est pressé (niveau bas)
                 key = (i, j)  # Retourner l'adresse de la touche (i, j)
 
-                # Si la touche RIGHTCTRL est pressée, basculer le mode
-                if normal_mode_matrix[i][j] == 'RIGHTCTRL' or symbol_mode_matrix[i][j] == 'RIGHTCTRL':
-                    toggle_mode()
-
-                # Simuler la touche dans le mode actuel
-                if key:
+                # Si la touche LEFTSHIFT est pressée, activer le suivi
+                if normal_mode_matrix[i][j] == 'LEFTSHIFT':
+                    left_shift_active = True
+                elif normal_mode_matrix[i][j] == 'RIGHTCTRL':
+                    toggle_mode()  # Basculer entre les modes si RIGHTCTRL est pressé
+                else:
+                    # Simuler la touche dans le mode actuel
                     key_name = get_key_name(i, j)
                     if key_name:
                         print(f"Touche pressée : {key_name}")
@@ -115,18 +119,28 @@ def get_key_code(key_name):
         '3': uinput.KEY_3, '4': uinput.KEY_4, '5': uinput.KEY_5, '6': uinput.KEY_6,
         '7': uinput.KEY_7, '8': uinput.KEY_8, '9': uinput.KEY_9, '0': uinput.KEY_0,
         'SPACE': uinput.KEY_SPACE, 'ENTER': uinput.KEY_ENTER,
-        'LEFTSHIFT': uinput.KEY_LEFTSHIFT, 'RIGHTCTRL': uinput.KEY_RIGHTCTRL
+        'LEFTSHIFT': uinput.KEY_LEFTSHIFT, 'RIGHTCTRL': uinput.KEY_RIGHTCTRL,
+        'BACKSPACE': uinput.KEY_BACKSPACE  # Ajout de BACKSPACE
     }
     return key_mapping.get(key_name)
 
 # Fonction pour envoyer un événement de touche
 def send_key_event(key_name):
+    global left_shift_active
+
     key_code = get_key_code(key_name)
 
     if key_code:
-        # Appuyer et relâcher une touche normale
-        device.emit(key_code, 1)  # Appuyer sur la touche
-        device.emit(key_code, 0)  # Relâcher la touche
+        # Si LEFTSHIFT est actif et qu'une lettre est pressée
+        if left_shift_active and key_name.isalpha():
+            device.emit(uinput.KEY_LEFTSHIFT, 1)  # Appuyer sur LEFTSHIFT
+            device.emit(key_code, 1)  # Appuyer sur la lettre
+            device.emit(key_code, 0)  # Relâcher la lettre
+            device.emit(uinput.KEY_LEFTSHIFT, 0)  # Relâcher LEFTSHIFT
+        else:
+            # Appuyer et relâcher une touche normale
+            device.emit(key_code, 1)  # Appuyer sur la touche
+            device.emit(key_code, 0)  # Relâcher la touche
     else:
         # Gestion des touches SYMBOL nécessitant une combinaison
         special_keys = {
@@ -137,9 +151,9 @@ def send_key_event(key_name):
             '%': (uinput.KEY_LEFTSHIFT, uinput.KEY_5),
             ')': (uinput.KEY_LEFTSHIFT, uinput.KEY_0),
             '(': (uinput.KEY_LEFTSHIFT, uinput.KEY_9),
-            '"': (uinput.KEY_LEFTSHIFT, uinput.KEY_APOSTROPHE),  # " sur P
-            "'": (uinput.KEY_APOSTROPHE,),  # Une seule touche pour '
-            '&': (uinput.KEY_LEFTSHIFT, uinput.KEY_7),  # & sur X
+            '"': (uinput.KEY_LEFTSHIFT, uinput.KEY_APOSTROPHE),
+            "'": (uinput.KEY_APOSTROPHE,),
+            '&': (uinput.KEY_LEFTSHIFT, uinput.KEY_7),
             '*': (uinput.KEY_LEFTSHIFT, uinput.KEY_8),
             '+': (uinput.KEY_LEFTSHIFT, uinput.KEY_EQUAL),
             '_': (uinput.KEY_LEFTSHIFT, uinput.KEY_MINUS),
@@ -147,12 +161,11 @@ def send_key_event(key_name):
             '<': (uinput.KEY_LEFTSHIFT, uinput.KEY_COMMA),
             '>': (uinput.KEY_LEFTSHIFT, uinput.KEY_DOT),
             '?': (uinput.KEY_LEFTSHIFT, uinput.KEY_SLASH),
-            ';': (uinput.KEY_SEMICOLON,),  # ; sur O
-            '-': (uinput.KEY_MINUS,),  # - sur J
-            '=': (uinput.KEY_EQUAL,),  # = sur L
-            '£': (uinput.KEY_102ND,),  # £ sur X
-            '.': (uinput.KEY_DOT,),  # . sur M
-            '/': (uinput.KEY_SLASH,)  # / sur V
+            ';': (uinput.KEY_SEMICOLON,),
+            '-': (uinput.KEY_MINUS,),
+            '=': (uinput.KEY_EQUAL,),
+            '/': (uinput.KEY_SLASH,),
+            '.': (uinput.KEY_DOT,)
         }
 
         if key_name in special_keys:
@@ -161,8 +174,6 @@ def send_key_event(key_name):
                 device.emit(key, 1)  # Appuyer sur chaque touche de la combinaison
             for key in keys:
                 device.emit(key, 0)  # Relâcher chaque touche de la combinaison
-
-
 
 # Fonction pour basculer entre les modes normal et SYMBOL
 def toggle_mode():
@@ -179,8 +190,9 @@ try:
     while True:
         pressed_key = read_keyboard()
         if pressed_key:
-            time.sleep(0.1)  # Délais pour éviter les lectures multiples rapides
+            time.sleep(0.3)  # Délais pour éviter les lectures multiples rapides
         else:
+            left_shift_active = False  # Réinitialiser LEFTSHIFT si aucune touche n'est pressée
             time.sleep(0.05)  # Ralentir la boucle s'il n'y a pas de touche pressée
 except KeyboardInterrupt:
     print("Arrêt du programme.")
