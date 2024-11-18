@@ -38,7 +38,7 @@ Running the Program: Clone this repository and run the script with Python 3:
 
 python3 your_script_name.py
 
-How It Works:
+## How It Works:
 
 The program detects which key is pressed on the matrix keyboard.
 If the RIGHTCTRL key is pressed, the mode toggles between normal and symbol.
